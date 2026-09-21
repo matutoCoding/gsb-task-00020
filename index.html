@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>潮粮折干结算器</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">🌽 潮粮折干结算器</div>
+    <div class="top-actions">
+      <span id="clock" class="clock"></span>
+      <span class="today-price">今日挂牌价：<b id="todayPrice">—</b></span>
+      <label class="unit-switch">单价
+        <select id="unitSelect">
+          <option value="ton">元/吨</option>
+          <option value="jin">元/斤</option>
+        </select>
+      </label>
+      <button class="btn ghost" id="resetDemoBtn">恢复演示数据</button>
+    </div>
+  </header>
+
+  <div id="rolloverBanner" class="banner hidden"></div>
+
+  <nav class="tabs">
+    <button class="tab active" data-tab="settle">车辆结算</button>
+    <button class="tab" data-tab="bills">已开单据</button>
+    <button class="tab" data-tab="prices">挂牌价与规则</button>
+  </nav>
+
+  <main>
+    <!-- ============ 车辆结算 ============ -->
+    <section id="tab-settle" class="tab-panel active">
+      <div class="layout">
+        <div class="col-loads">
+          <div class="panel-head">
+            <h2>在站车辆</h2>
+            <button class="btn primary" id="newLoadBtn">+ 新车</button>
+          </div>
+          <ul id="loadList" class="load-list"></ul>
+        </div>
+
+        <div class="col-detail">
+          <div id="loadDetail" class="empty-hint">从左边选一辆车，或点「+ 新车」开始登记。</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 已开单据 ============ -->
+    <section id="tab-bills" class="tab-panel">
+      <div class="panel-head">
+        <h2>已开单据（不可修改）</h2>
+      </div>
+      <table class="grid">
+        <thead>
+          <tr>
+            <th>单号</th><th>状态</th><th>车号</th><th>司机</th>
+            <th>开单时间</th><th>计价日</th><th>口径</th>
+            <th class="num">净重(kg)</th><th class="num">结算干重(kg)</th>
+            <th class="num">单价</th><th class="num">金额(元)</th><th>原单</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="billRows"></tbody>
+      </table>
+    </section>
+
+    <!-- ============ 挂牌价与规则 ============ -->
+    <section id="tab-prices" class="tab-panel">
+      <div class="rules-layout">
+        <div class="card">
+          <h2>每日挂牌价（元/吨，内部统一按吨）</h2>
+          <div class="price-editor">
+            <input type="date" id="priceDate" />
+            <input type="number" id="priceValue" step="0.01" placeholder="单价（元/吨）" />
+            <button class="btn primary" id="setPriceBtn">保存牌价</button>
+          </div>
+          <table class="grid">
+            <thead><tr><th>日期</th><th class="num">元/吨</th><th class="num">元/斤</th></tr></thead>
+            <tbody id="priceRows"></tbody>
+          </table>
+          <p class="hint">跨当晚零点后仍未开单的车，自动落到第二天的牌价重算；已开单锁死不动。</p>
+        </div>
+
+        <div class="card">
+          <h2>水分 / 杂质 扣量系数（改后只对之后过磅的车生效）</h2>
+          <table class="grid">
+            <thead><tr><th>项目</th><th class="num">系数</th><th>生效时间</th><th>备注</th><th></th></tr></thead>
+            <tbody id="coeffRows"></tbody>
+          </table>
+          <div class="coeff-editor">
+            <select id="coeffKind">
+              <option value="moisture">水分扣量系数</option>
+              <option value="impurity">杂质扣量系数</option>
+            </select>
+            <input type="number" id="coeffValue" step="0.01" placeholder="新系数，如 1.2" />
+            <input type="datetime-local" id="coeffTime" />
+            <input type="text" id="coeffNote" placeholder="备注（可选）" />
+            <button class="btn primary" id="addCoeffBtn">新增生效版本</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>水分分段与扣量档（规则 2）</h2>
+          <div class="form-grid" id="moistureParams"></div>
+        </div>
+
+        <div class="card">
+          <h2>杂质与容重等级</h2>
+          <div class="form-grid" id="impurityParams"></div>
+          <table class="grid" id="gradeTableWrap">
+            <thead><tr><th>等级</th><th class="num">容重≥(g/L)</th><th class="num">扣率(%)</th><th>拒收?</th></tr></thead>
+            <tbody id="gradeRows"></tbody>
+          </table>
+        </div>
+
+        <div class="card wide">
+          <h2>扣量算法说明</h2>
+          <p class="hint">
+            水分：安全水分以内不扣；安全线到拒收线之间，每超一个步长为一档，每档扣率 × 当前扣量系数；超过拒收线整车拒收。<br>
+            杂质：超过安全杂质后同样按步长计档。容重：按容重值自动落等，等级自带扣率。<br>
+            三样扣率按 <b>水分 → 杂质 → 容重</b> 顺序连乘，动其中一样，另外两样扣到的重量会跟着变。
+          </p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- 单据打印弹层 -->
+  <div id="billModal" class="modal hidden">
+    <div class="modal-box bill-box">
+      <div class="modal-head">
+        <button class="btn" id="printBillBtn">🖨 打印</button>
+        <button class="btn ghost" id="closeBillBtn">关闭</button>
+      </div>
+      <div id="billPrintArea" class="print-area"></div>
+    </div>
+  </div>
+
+  <script src="js/domain.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
