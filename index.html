@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>潮粮折干结算器</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">🌽 潮粮折干结算器</div>
+  <nav class="tabs" id="tabs">
+    <button data-tab="settle" class="active">结算</button>
+    <button data-tab="bills">单据</button>
+    <button data-tab="prices">挂牌价</button>
+    <button data-tab="settings">标准设置</button>
+    <button data-tab="data">数据</button>
+  </nav>
+  <div class="units">
+    <label class="seg">计价单位
+      <span class="segbtns" id="unitSeg">
+        <button data-unit="ton" class="on">元/吨</button>
+        <button data-unit="jin">元/斤</button>
+      </span>
+    </label>
+  </div>
+</header>
+
+<main>
+  <!-- ========== 结算 ========== -->
+  <section id="tab-settle" class="tab active">
+    <div class="row between">
+      <h2>在算车辆</h2>
+      <button class="primary" id="newDraftBtn">＋ 新车过磅</button>
+    </div>
+    <div id="draftList"></div>
+
+    <div id="draftEditor" class="hidden">
+      <div class="card">
+        <div class="row between wrap">
+          <h3 id="editorTitle">车辆结算</h3>
+          <div class="row">
+            <label class="seg">水分报法
+              <span class="segbtns" id="basisSeg">
+                <button data-basis="wet" class="on">湿基</button>
+                <button data-basis="dry">干基</button>
+              </span>
+            </label>
+            <button id="closeEditor" class="ghost">收起</button>
+          </div>
+        </div>
+        <div id="recalcBanner" class="banner warn hidden"></div>
+        <div id="crossDayBanner" class="banner info hidden"></div>
+
+        <div class="formgrid">
+          <label>车牌号<input id="fPlate" placeholder="如 吉A·12345"></label>
+          <label>司机<input id="fDriver" placeholder="司机姓名"></label>
+          <label>品种<input id="fGrain" readonly></label>
+          <label>建车时间<input id="fCreated" readonly></label>
+        </div>
+
+        <h4>过磅趟次 <small>每趟保存即锁定当时扣量系数（规则9）</small></h4>
+        <div id="tripRows"></div>
+        <button id="addTripBtn" class="ghost">＋ 再加一趟</button>
+
+        <div id="pendingBox" class="banner warn hidden"></div>
+
+        <div class="summary card-inner" id="summaryBox"></div>
+
+        <div class="row end">
+          <button id="issueBtn" class="primary big">开具结算单</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== 单据 ========== -->
+  <section id="tab-bills" class="tab">
+    <h2>已开单据 <small>已打出的单子不能改，只能另开一张（规则10）</small></h2>
+    <div id="billList"></div>
+  </section>
+
+  <!-- ========== 挂牌价 ========== -->
+  <section id="tab-prices" class="tab">
+    <h2>挂牌价（只对当天有效，过零点按次日价）</h2>
+    <div class="card formgrid">
+      <label>日期<input type="date" id="priceDate"></label>
+      <label>单价（<span id="priceUnitLabel">元/吨</span>）<input id="priceValue" type="number" step="0.001" placeholder="如 2000"></label>
+      <button id="savePriceBtn" class="primary">保存挂牌价</button>
+    </div>
+    <h3>历史挂牌价</h3>
+    <table class="grid" id="priceTable"><thead>
+      <tr><th>日期</th><th>元/吨</th><th>元/斤</th><th></th></tr>
+    </thead><tbody></tbody></table>
+  </section>
+
+  <!-- ========== 标准设置 ========== -->
+  <section id="tab-settings" class="tab">
+    <h2>扣量标准 <small>改系数只影响之后过磅的车（规则9）</small></h2>
+    <div class="card formgrid">
+      <label>品种<input id="cfgGrain"></label>
+      <label>安全水分(%)<input id="cfgSafe" type="number" step="0.1"></label>
+      <label>拒收水分(%)<input id="cfgReject" type="number" step="0.1"></label>
+      <label>水分扣量系数(每点%)<input id="cfgMC" type="number" step="0.1"></label>
+      <label>基准杂质(%)<input id="cfgBaseImp" type="number" step="0.1"></label>
+      <label>杂质扣量系数(每点%)<input id="cfgImpC" type="number" step="0.1"></label>
+    </div>
+    <h3>容重等级扣率（g/L）</h3>
+    <div id="cfgGrades"></div>
+    <button id="saveCfgBtn" class="primary">保存标准</button>
+    <p class="hint">说明：中间段水分扣率 = (水分−安全水分)×系数÷100；杂质同理按超基准点数扣；
+      结算重量 = 净重 ×(1−水扣)×(1−容重扣)×(1−杂质扣)。水分达到拒收线本车出拒收单。</p>
+  </section>
+
+  <!-- ========== 数据 ========== -->
+  <section id="tab-data" class="tab">
+    <h2>数据备份</h2>
+    <div class="card row">
+      <button id="exportBtn" class="primary">导出 JSON</button>
+      <button id="importBtn" class="ghost">导入 JSON</button>
+      <button id="clearBtn" class="danger">清空全部数据</button>
+      <input type="file" id="importFile" accept="application/json" class="hidden">
+    </div>
+    <p class="hint">数据保存在本机浏览器（localStorage）。换电脑请先导出再导入。</p>
+  </section>
+</main>
+
+<!-- 单据打印层 -->
+<div id="printArea" class="hidden"></div>
+
+<script src="js/engine.js"></script>
+<script src="js/store.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

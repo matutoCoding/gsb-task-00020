@@ -1,0 +1,10 @@
+{
+  "name": "chaoliang-zhegan",
+  "version": "1.0.0",
+  "description": "潮粮折干结算器：按当天挂牌价把潮粮折成干粮再算钱",
+  "private": true,
+  "scripts": {
+    "test": "node --test",
+    "start": "python3 -m http.server 8000"
+  }
+}
